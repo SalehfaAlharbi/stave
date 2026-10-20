@@ -1,0 +1,7 @@
+node_modules/
+# Uploaded music, covers and the SQLite database (local dev data, never committed)
+server/data/
+.env
+*.log
+.DS_Store
+Thumbs.db
