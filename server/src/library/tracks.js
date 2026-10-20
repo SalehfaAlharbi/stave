@@ -63,6 +63,7 @@ export function toApi(row) {
     duration: row.duration,
     mimeType: row.mime_type,
     fileSize: row.file_size,
+    streamUrl: `/api/tracks/${row.id}/stream`,
     coverUrl: row.cover_path ? `/api/covers/${posix.basename(row.cover_path)}` : null,
     uploadedAt: row.uploaded_at,
   };

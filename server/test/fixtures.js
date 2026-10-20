@@ -61,8 +61,14 @@ function riffChunk(id, data) {
   return Buffer.concat([Buffer.from(id, 'latin1'), u32le(data.length), data, pad]);
 }
 
-/** 16-bit mono PCM silence, with an optional RIFF INFO tag list. */
-export function makeWav({ seconds = 1, sampleRate = 8000, tags = {} } = {}) {
+/** 16-bit mono PCM, silent or a sine tone at `tone` Hz, with an optional RIFF INFO tag list. */
+export function makeWav({ seconds = 1, sampleRate = 8000, tone, tags = {} } = {}) {
+  const samples = Buffer.alloc(Math.round(seconds * sampleRate) * 2);
+  if (tone) {
+    for (let i = 0; i < samples.length / 2; i++) {
+      samples.writeInt16LE(Math.round(Math.sin((2 * Math.PI * tone * i) / sampleRate) * 8000), i * 2);
+    }
+  }
   const fmt = Buffer.alloc(16);
   fmt.writeUInt16LE(1, 0); // PCM
   fmt.writeUInt16LE(1, 2); // channels
@@ -71,7 +77,7 @@ export function makeWav({ seconds = 1, sampleRate = 8000, tags = {} } = {}) {
   fmt.writeUInt16LE(2, 12); // block align
   fmt.writeUInt16LE(16, 14); // bits per sample
 
-  const chunks = [riffChunk('fmt ', fmt), riffChunk('data', Buffer.alloc(Math.round(seconds * sampleRate) * 2))];
+  const chunks = [riffChunk('fmt ', fmt), riffChunk('data', samples)];
   const info = Object.entries({ INAM: tags.title, IART: tags.artist, IPRD: tags.album }).filter(([, v]) => v);
   if (info.length) {
     chunks.push(riffChunk('LIST', Buffer.concat([

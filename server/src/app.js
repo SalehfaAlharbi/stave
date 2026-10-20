@@ -7,6 +7,7 @@ import { openDatabase } from './db/index.js';
 import { createLibrary } from './library/index.js';
 import coverRoutes from './routes/covers.js';
 import healthRoutes from './routes/health.js';
+import streamRoutes from './routes/stream.js';
 import trackRoutes from './routes/tracks.js';
 
 /**
@@ -46,6 +47,7 @@ export async function buildApp(config) {
 
   await app.register(healthRoutes);
   await app.register(trackRoutes);
+  await app.register(streamRoutes);
   await app.register(coverRoutes);
 
   return app;

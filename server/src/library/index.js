@@ -156,6 +156,7 @@ export function createLibrary({ db, dataDir, maxUploadBytes }) {
     ingest,
     remove,
     coverFile,
+    audioFile: (track) => absolute(track.file_path),
     get: tracks.findById,
     list: tracks.list,
     count: tracks.count,
