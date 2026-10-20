@@ -1,0 +1,10 @@
+{
+  "name": "stave-client",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stave web client: plain HTML, CSS and ES modules, served by the Stave server",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  }
+}

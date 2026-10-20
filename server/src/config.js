@@ -24,6 +24,7 @@ export function loadConfig(env = process.env) {
     host: env.HOST || '127.0.0.1',
     port: intFromEnv(env, 'PORT', 4545),
     dataDir: resolve(SERVER_ROOT, env.STAVE_DATA_DIR || 'data'),
+    clientDir: resolve(SERVER_ROOT, env.STAVE_CLIENT_DIR || '../client'),
     maxUploadBytes: intFromEnv(env, 'STAVE_MAX_UPLOAD_MB', 300) * 1024 * 1024,
     logLevel: env.LOG_LEVEL || 'info',
   };

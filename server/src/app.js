@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { STATUS_CODES } from 'node:http';
 import { join } from 'node:path';
 import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { openDatabase } from './db/index.js';
 import { createLibrary } from './library/index.js';
@@ -49,6 +50,15 @@ export async function buildApp(config) {
   await app.register(trackRoutes);
   await app.register(streamRoutes);
   await app.register(coverRoutes);
+
+  // The web client, from the same origin as the API: no CORS, and the
+  // service worker (phase 7) can cover the whole app. Files are revalidated
+  // on every load (ETag), so a deploy shows up on the next refresh.
+  if (config.clientDir) {
+    await app.register(fastifyStatic, { root: config.clientDir, maxAge: 0 });
+    // Browsers ask for /favicon.ico even when the page declares an SVG icon.
+    app.get('/favicon.ico', (request, reply) => reply.redirect('/assets/icon.svg', 301));
+  }
 
   return app;
 }

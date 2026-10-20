@@ -10,22 +10,55 @@ and phone. The full plan is in [docs/STAVE.md](docs/STAVE.md).
 | --- | --- | --- |
 | 1 | Server and library: upload, tag reading, SQLite | done |
 | 2 | Streaming with HTTP range requests | done |
-| 3 | Player UI | next |
-| 4 | Accounts, likes and playlists | |
+| 3 | Player UI | done |
+| 4 | Accounts, likes and playlists | next |
 | 5 | Synced lyrics | |
 | 6 | Docker Compose deploy on the SER8 | |
 | 7 | Polish: PWA install, media keys | |
 
-## Server
+## Running it
 
-Node.js 22.13+ (uses the built-in `node:sqlite`), Fastify, music-metadata.
+Node.js 22.13+ (uses the built-in `node:sqlite`).
 
 ```bash
 cd server
 npm install
-npm run dev     # http://127.0.0.1:4545, restarts on changes, readable logs
-npm test
+npm run dev     # then open http://127.0.0.1:4545
 ```
+
+The server serves both the API and the web client. Tests: `npm test` in
+`server/` and in `client/`.
+
+## Client
+
+Plain HTML, CSS and ES modules in [client/](client/), with no framework and no
+build step. It's a port of the Stave Player Mockup at 1280×800 that also works
+at phone width.
+
+- **Songs view:** search (every word must match), a hero for what's playing, and the track list. Click a row to play from there.
+- **Player bar:** play/pause, previous (restarts the song after 3 s), next, shuffle, repeat (off / all / this song), seek and volume. Space plays and pauses. Volume, shuffle and repeat are remembered.
+- **Dot-helix seek bar:** the played part is white and accent dots orbiting each other (the mockup's 2 s cycle); the part still to play is flat dots. Drag it, or use the arrow keys.
+- **Wave volume bar:** bars on a flat baseline under a sine envelope. Lit bars dance while music plays, the edge bar is the accent-colored handle, and the rest are dots.
+- **Vinyl:** grooves and sheen stay still; only the cover on the label turns, at 90°/s, and only while playing.
+- **Color:** the backdrop is the cover blurred and darkened, crossfading between songs. The accent is the cover's most vivid hue, lightened until it passes 4.5:1 contrast as text.
+- **Add song:** the button, or drop files anywhere on the window. One toast per batch shows progress and lists what failed and why.
+- **Lyrics tab:** the large vinyl and titles; synced lines arrive in phase 5.
+
+Tag text is inserted with `textContent` only, because tags come from uploaded
+files. A Content-Security-Policy limits the page to its own origin plus Google
+Fonts.
+
+| File | |
+| --- | --- |
+| [src/player.js](client/src/player.js) | The audio element, queue, shuffle and repeat rules |
+| [src/queue.js](client/src/queue.js) | Pure play-order logic (unit-tested) |
+| [src/accent.js](client/src/accent.js) | Accent color from cover pixels |
+| [src/ui/helix.js](client/src/ui/helix.js), [src/ui/wave.js](client/src/ui/wave.js) | The two animated bars: pure geometry plus a small DOM renderer |
+| [src/ui/upload.js](client/src/ui/upload.js) | Upload with progress (XHR) and drag-and-drop |
+
+## Server
+
+Fastify, music-metadata and `node:sqlite`.
 
 ### API
 

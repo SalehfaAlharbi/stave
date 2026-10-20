@@ -2,6 +2,32 @@
 // ffmpeg. Each builder writes real tags (ID3v2.4, RIFF INFO, Vorbis comments)
 // that music-metadata parses exactly like it would a ripped song.
 
+import { crc32, deflateSync } from 'node:zlib';
+
+/** An RGB PNG where pixel(x, y) returns [r, g, b]; for covers that look like covers. */
+export function makePng(width, height, pixel) {
+  const raw = Buffer.alloc((width * 3 + 1) * height);
+  for (let y = 0; y < height; y++) {
+    const row = y * (width * 3 + 1); // each row starts with filter type 0
+    for (let x = 0; x < width; x++) raw.set(pixel(x, y), row + 1 + x * 3);
+  }
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data]);
+    return Buffer.concat([u32be(data.length), body, u32be(crc32(body))]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header[8] = 8; // bit depth
+  header[9] = 2; // RGB
+  return Buffer.concat([
+    Buffer.from('\x89PNG\r\n\x1a\n', 'latin1'),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(raw)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
 /** A valid 1x1 PNG, used as embedded cover art. */
 export const PNG_1PX = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
