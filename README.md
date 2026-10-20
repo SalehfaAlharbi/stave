@@ -11,8 +11,8 @@ and phone. The full plan is in [docs/STAVE.md](docs/STAVE.md).
 | 1 | Server and library: upload, tag reading, SQLite | done |
 | 2 | Streaming with HTTP range requests | done |
 | 3 | Player UI | done |
-| 4 | Accounts, likes and playlists | next |
-| 5 | Synced lyrics | |
+| 4 | Accounts, likes and playlists | done |
+| 5 | Synced lyrics | next |
 | 6 | Docker Compose deploy on the SER8 | |
 | 7 | Polish: PWA install, media keys | |
 
@@ -29,13 +29,24 @@ npm run dev     # then open http://127.0.0.1:4545
 The server serves both the API and the web client. Tests: `npm test` in
 `server/` and in `client/`.
 
+**First run:** with no accounts yet, the server prints a one-time setup code:
+
+```
+No accounts yet. Open Stave in a browser and create the admin account with setup code K7QM-2XRT-9WHP
+```
+
+Open the app, pick a name and password, and enter that code. You become the
+admin, and you can invite other people from the account menu (top right).
+
 ## Client
 
 Plain HTML, CSS and ES modules in [client/](client/), with no framework and no
 build step. It's a port of the Stave Player Mockup at 1280×800 that also works
 at phone width.
 
-- **Songs view:** search (every word must match), a hero for what's playing, and the track list. Click a row to play from there.
+- **Views:** Songs (the whole library, with search), Liked Songs, and each playlist, at `#/`, `#/liked` and `#/playlist/<id>`, so Back and reload work. The hero names the list and plays or shuffles it. Click any row to play from there.
+- **Liked Songs and playlists:** a heart on every row. The "+" next to Playlists creates one inline. Each row's "…" menu adds the song to a playlist, removes it from the one you're in, or deletes it from the library if you added it (or you're the admin). Playlists can be renamed and deleted from the hero's "…" menu.
+- **Accounts:** a sign-in screen, first-run setup with the code from the log, and joining through an invite link.
 - **Player bar:** play/pause, previous (restarts the song after 3 s), next, shuffle, repeat (off / all / this song), seek and volume. Space plays and pauses. Volume, shuffle and repeat are remembered.
 - **Dot-helix seek bar:** the played part is white and accent dots orbiting each other (the mockup's 2 s cycle); the part still to play is flat dots. Drag it, or use the arrow keys.
 - **Wave volume bar:** bars on a flat baseline under a sine envelope. Lit bars dance while music plays, the edge bar is the accent-colored handle, and the rest are dots.
@@ -64,17 +75,36 @@ Fastify, music-metadata and `node:sqlite`.
 
 | Method | Path | |
 | --- | --- | --- |
-| `GET` | `/api/health` | Status, version and track count |
+Everything under `/api` needs a signed-in session, except health and the
+sign-in endpoints. Tracks carry `liked` for the user asking.
+
+| Method | Path | |
+| --- | --- | --- |
+| `GET` | `/api/health` | Status and version (plus track count when signed in). Public, for health checks |
+| `GET` | `/api/auth/status` | The signed-in user, and whether first-run setup is needed |
+| `POST` | `/api/auth/setup` | First run only: `{ name, password, code }` creates the admin |
+| `POST` | `/api/auth/login` · `/api/auth/logout` | Sign in (`429` after 10 failures in 15 minutes) and out |
+| `POST` | `/api/invites` | Admin: a single-use invite link, valid 7 days |
+| `GET` · `POST` | `/api/invites/:code` · `/api/auth/register` | Check an invite; create an account with it |
 | `POST` | `/api/tracks` | Upload one song as `multipart/form-data` (field `file`). `201` with the track, `409` if the exact file is already in the library, `413` if too large, `415` if not a playable audio file |
 | `GET` | `/api/tracks?q=` | All tracks, newest first. `q` searches title, artist and album; every word must match |
 | `GET` | `/api/tracks/:id` | One track |
 | `GET` `HEAD` | `/api/tracks/:id/stream` | The audio, with range requests (`206`, `416`), `If-Range`, and the file hash as a strong `ETag` |
-| `DELETE` | `/api/tracks/:id` | Remove a track, its file, and its cover if no other track uses it |
+| `DELETE` | `/api/tracks/:id` | Whoever added it, or the admin: removes the track, its file, and its cover if unused |
 | `GET` | `/api/covers/:name` | Cover art extracted from the tags |
+| `GET` | `/api/likes` | Your Liked Songs, newest first |
+| `PUT` · `DELETE` | `/api/likes/:trackId` | Like, unlike |
+| `GET` · `POST` | `/api/playlists` | Your playlists (with song count and length); create one `{ name }` |
+| `GET` · `PATCH` · `DELETE` | `/api/playlists/:id` | One playlist with its songs; rename; delete |
+| `POST` · `DELETE` | `/api/playlists/:id/tracks[/:trackId]` | Add `{ trackId }` (`409` if already there); remove |
 
-```bash
-curl -F "file=@Some Artist - Some Song.mp3" http://127.0.0.1:4545/api/tracks
-```
+### How accounts work
+
+- **One shared library, private collections.** Everyone sees the same songs. Likes and playlists belong to one user, and another user's playlist answers `404`, so even its existence isn't revealed.
+- **Passwords** are hashed with scrypt (built into Node, memory-hard) with a per-user salt. A sign-in with an unknown name still runs a hash, so response times don't reveal which names exist.
+- **Sessions** are random 256-bit tokens in an `HttpOnly`, `SameSite=Lax` cookie (`Secure` over HTTPS). The database stores only their SHA-256, so a copy of it can't be used to sign in. They last 30 days and renew while in use.
+- **Cross-site requests** that change anything are refused when their `Origin` is another site, on top of `SameSite`.
+- **First run** needs the setup code from the server log, so whoever opens a fresh server first can't take it over. **Invites** are single-use and stored hashed.
 
 ### How uploads work
 
@@ -100,8 +130,9 @@ doesn't fetch the first five minutes.
 
 | Variable | Default | |
 | --- | --- | --- |
-| `HOST` | `127.0.0.1` | Local-only until login exists (phase 4) |
+| `HOST` | `127.0.0.1` | `0.0.0.0` to reach it from other devices |
 | `PORT` | `4545` | |
 | `STAVE_DATA_DIR` | `server/data` | Database, music and covers |
 | `STAVE_MAX_UPLOAD_MB` | `300` | |
+| `TRUST_PROXY` | `false` | `true` behind a proxy or tunnel you control, so client addresses and HTTPS are read from `X-Forwarded-*` |
 | `LOG_LEVEL` | `info` | |

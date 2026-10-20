@@ -27,6 +27,10 @@ class FakeAudio extends EventTarget {
     this.ended = true;
     this.dispatchEvent(new Event('ended'));
   }
+  removeAttribute(name) {
+    if (name === 'src') this.src = '';
+  }
+  load() {}
 }
 
 const tracks = [1, 2, 3].map((id) => ({ id, title: `T${id}`, duration: 100, streamUrl: `/api/tracks/${id}/stream` }));
@@ -126,6 +130,29 @@ describe('Player', () => {
 
     audio.dispatchEvent(new Event('error')); // a real media error is still reported
     assert.deepEqual(errors, ['error']);
+  });
+
+  test('remembers which list is playing', () => {
+    const { player } = setup();
+    player.playList(tracks, 0, { context: 'playlist:7' });
+    assert.equal(player.context, 'playlist:7');
+  });
+
+  test('dropping the playing track moves on, or stops at the end', () => {
+    const { audio, player } = setup();
+    player.playList(tracks, 1);
+    player.dropTrack(99); // not playing: nothing happens
+    assert.equal(player.current.id, 2);
+    player.dropTrack(2);
+    assert.equal(player.current.id, 3);
+
+    const seen = [];
+    player.addEventListener('track', (event) => seen.push(event.detail));
+    player.dropTrack(3);
+    assert.equal(player.current, null);
+    assert.equal(player.playing, false);
+    assert.deepEqual(seen, [null]);
+    assert.equal(audio.src, '', 'nothing left loading the deleted file');
   });
 
   test('emits a track event for every new song', () => {

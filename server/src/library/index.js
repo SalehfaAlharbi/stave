@@ -92,7 +92,7 @@ export function createLibrary({ db, dataDir, maxUploadBytes }) {
    * file is already in the library, nothing is stored and the existing track
    * is returned.
    */
-  async function ingest(stream, originalName) {
+  async function ingest(stream, originalName, { uploadedBy = null } = {}) {
     const { tmpPath, hash, size } = await receive(stream);
     try {
       const existing = tracks.findByHash(hash);
@@ -119,6 +119,7 @@ export function createLibrary({ db, dataDir, maxUploadBytes }) {
           mime_type: format.mime,
           original_name: originalName,
           cover_path: coverPath,
+          uploaded_by: uploadedBy,
         });
         return { track, duplicate: false };
       } catch (err) {

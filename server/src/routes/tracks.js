@@ -18,11 +18,11 @@ export default async function trackRoutes(app) {
       },
     },
   }, async (request) => {
-    return { tracks: library.list({ q: request.query.q }).map(toApi) };
+    return { tracks: library.list({ q: request.query.q, userId: request.user.id }).map(toApi) };
   });
 
   app.get('/api/tracks/:id', { schema: { params: idParams } }, async (request) => {
-    const track = library.get(request.params.id);
+    const track = library.get(request.params.id, request.user.id);
     if (!track) throw httpError(404, 'Track not found.');
     return toApi(track);
   });
@@ -36,21 +36,26 @@ export default async function trackRoutes(app) {
     const part = await request.file();
     if (!part) throw httpError(400, 'The upload has no file in it.');
 
-    const { track, duplicate } = await library.ingest(part.file, part.filename);
+    const { track, duplicate } = await library.ingest(part.file, part.filename, { uploadedBy: request.user.id });
     if (duplicate) {
       return reply.code(409).send({
         statusCode: 409,
         error: 'Conflict',
         message: 'This song is already in your library.',
-        track: toApi(track),
+        track: toApi(library.get(track.id, request.user.id)),
       });
     }
     return reply.code(201).header('location', `/api/tracks/${track.id}`).send(toApi(track));
   });
 
+  // The library is shared, so only whoever added a song (or the admin) may delete it.
   app.delete('/api/tracks/:id', { schema: { params: idParams } }, async (request, reply) => {
-    const track = await library.remove(request.params.id);
+    const track = library.get(request.params.id);
     if (!track) throw httpError(404, 'Track not found.');
+    if (!request.user.isAdmin && track.uploaded_by !== request.user.id) {
+      throw httpError(403, 'Only the person who added this song, or the admin, can delete it.');
+    }
+    await library.remove(track.id);
     return reply.code(204).send();
   });
 }

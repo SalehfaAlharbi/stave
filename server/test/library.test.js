@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, test } from 'node:test';
@@ -120,6 +121,7 @@ describe('persistence', () => {
     const db = new DatabaseSync(join(first.dataDir, 'stave.db'), { readOnly: true });
     const { user_version: version } = db.prepare('PRAGMA user_version').get();
     db.close();
-    assert.equal(version, 1);
+    const migrations = (await readdir(new URL('../src/db/migrations/', import.meta.url))).filter((f) => f.endsWith('.sql'));
+    assert.equal(version, migrations.length);
   });
 });

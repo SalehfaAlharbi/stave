@@ -27,5 +27,7 @@ export function loadConfig(env = process.env) {
     clientDir: resolve(SERVER_ROOT, env.STAVE_CLIENT_DIR || '../client'),
     maxUploadBytes: intFromEnv(env, 'STAVE_MAX_UPLOAD_MB', 300) * 1024 * 1024,
     logLevel: env.LOG_LEVEL || 'info',
+    // Set to "true" only when a proxy you control (e.g. a Cloudflare Tunnel) sits in front.
+    trustProxy: env.TRUST_PROXY === 'true',
   };
 }

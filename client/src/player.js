@@ -19,6 +19,7 @@ export class Player extends EventTarget {
     this.queue = new Queue({ random });
     this.shuffle = false;
     this.repeat = 'off';
+    this.context = null;
 
     const forward = (from, to) => audio.addEventListener(from, () => this.emit(to));
     forward('play', 'state');
@@ -61,10 +62,30 @@ export class Player extends EventTarget {
     return Number.isFinite(d) && d > 0 ? d : 0;
   }
 
-  /** Starts playing `tracks` at `index`; this list becomes the queue. */
-  playList(tracks, index = 0) {
+  /**
+   * Starts playing `tracks` at `index`; this list becomes the queue.
+   * `context` names where the list came from (e.g. "playlist:3"), so the
+   * page can tell whether the list on screen is the one playing.
+   */
+  playList(tracks, index = 0, { context = null } = {}) {
+    this.context = context;
     this.queue.load(tracks, index, { shuffle: this.shuffle });
     this.loadCurrent({ autoplay: true });
+  }
+
+  /** Stops if `trackId` is playing (it was deleted), moving on when there is more. */
+  dropTrack(trackId) {
+    if (this.current?.id !== trackId) return;
+    if (this.queue.next()) {
+      this.loadCurrent({ autoplay: this.playing });
+    } else {
+      this.pause();
+      this.audio.removeAttribute('src');
+      this.audio.load();
+      this.queue.load([]);
+      this.emit('track', null);
+      this.emit('state');
+    }
   }
 
   loadCurrent({ autoplay }) {

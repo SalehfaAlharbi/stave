@@ -3,9 +3,10 @@ import { accentFromImage } from '../accent.js';
 const PLACEHOLDER_COVER = '/assets/cover-placeholder.svg';
 
 /**
- * Everything that follows the current song: the hero, both vinyls, the
- * player bar's cover and titles, the lyrics view's titles, the blurred
- * backdrop and the accent color.
+ * Everything that follows the current song: both vinyls, the player bar's
+ * cover and titles, the lyrics view's titles, the blurred backdrop, the
+ * accent color and the tab title. With nothing playing, the vinyl shows the
+ * cover of the first song on screen.
  */
 export function createNowPlaying(doc) {
   const $ = (selector) => doc.querySelector(selector);
@@ -16,6 +17,8 @@ export function createNowPlaying(doc) {
   const backdrop = $('.backdrop-art');
   let shownCover = null;
   let accentRequest = 0;
+  let current = null;
+  let idleCover = null;
 
   function setText(selector, text) {
     const el = $(selector);
@@ -54,13 +57,10 @@ export function createNowPlaying(doc) {
   }
 
   return {
-    /** Shows `track`, or the library summary when nothing is playing. */
-    update(track, { summary }) {
-      setCover(track?.coverUrl ?? null);
+    update(track) {
+      current = track;
+      setCover(track?.coverUrl ?? idleCover);
       if (!track) {
-        setText('#hero-kicker', 'Library');
-        setText('#hero-title', 'Songs');
-        setText('#hero-meta', summary);
         setText('#player-title', 'Nothing playing');
         setText('#player-artist', null);
         setText('#lyrics-title', 'Nothing playing');
@@ -69,15 +69,17 @@ export function createNowPlaying(doc) {
         return;
       }
       const artist = track.artist ?? 'Unknown artist';
-      // Album titles are the display type (Zen Dots); the song then goes in the line below.
-      setText('#hero-kicker', 'Now playing');
-      setText('#hero-title', track.album ?? track.title);
-      setText('#hero-meta', [track.album ? track.title : null, artist, track.year].filter(Boolean).join(' · '));
       setText('#player-title', track.title);
       setText('#player-artist', artist);
       setText('#lyrics-title', track.title);
       setText('#lyrics-artist', artist);
       doc.title = `${track.title} · ${artist} — Stave`;
+    },
+
+    /** The cover to show while nothing plays (the first song of the open list). */
+    setIdleCover(url) {
+      idleCover = url ?? null;
+      if (!current) setCover(idleCover);
     },
   };
 }
