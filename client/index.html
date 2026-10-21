@@ -119,7 +119,27 @@
         </div>
       </div>
       <div class="lyrics-lines">
-        <p class="lyrics-empty">No lyrics for this song yet.</p>
+        <div class="lyrics-tools" hidden>
+          <button class="pill pill-secondary pill-small" id="lyrics-search" type="button" hidden>Search LRCLIB again</button>
+          <button class="pill pill-secondary pill-small" id="lyrics-edit" type="button">Add lyrics</button>
+        </div>
+        <div class="lyrics-scroll">
+          <p class="lyrics-status" role="status"></p>
+          <div class="lyrics-list"></div>
+        </div>
+        <p class="lyrics-credit" hidden>Lyrics from <a href="https://lrclib.net" target="_blank" rel="noopener noreferrer">LRCLIB</a></p>
+        <form class="lyrics-editor" hidden>
+          <label class="lyrics-editor-label" for="lyrics-text">Lyrics</label>
+          <p class="lyrics-help" id="lyrics-help">Paste plain lyrics, or LRC lines like <code>[01:23.45] words</code> so they follow the song. To sync by hand, play the song, put the cursor on a line and press <strong>Stamp line</strong> as it starts.</p>
+          <textarea id="lyrics-text" aria-describedby="lyrics-help" spellcheck="false" maxlength="100000"></textarea>
+          <div class="lyrics-editor-actions">
+            <button class="pill pill-secondary" id="lyrics-stamp" type="button">Stamp line at 0:00</button>
+            <span class="lyrics-editor-spacer"></span>
+            <button class="pill pill-danger-quiet" id="lyrics-remove" type="button">Remove</button>
+            <button class="pill pill-secondary" id="lyrics-cancel" type="button">Cancel</button>
+            <button class="pill pill-primary" type="submit">Save</button>
+          </div>
+        </form>
       </div>
     </section>
   </main>

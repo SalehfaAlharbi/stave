@@ -4,6 +4,7 @@ import { Player } from './player.js';
 import { authenticate } from './ui/auth.js';
 import { openDialog } from './ui/dialog.js';
 import { createHelix } from './ui/helix.js';
+import { createLyricsView } from './ui/lyrics.js';
 import { openMenu } from './ui/menu.js';
 import { createNowPlaying } from './ui/nowplaying.js';
 import { createSidebar } from './ui/sidebar.js';
@@ -36,6 +37,7 @@ function saveSettings() {
 const player = new Player(new Audio());
 const toasts = createToasts($('#toasts'));
 const nowPlaying = createNowPlaying(document);
+const lyricsView = createLyricsView({ root: $('#view-lyrics'), player, toasts });
 const tracklist = createTracklist($('#tracklist'), $('#row-template'), {
   onPlay: playFrom,
   onLike: toggleLike,
@@ -431,6 +433,8 @@ function tick(ms) {
   if (player.duration) helix.setFraction(player.position / player.duration);
   helix.render(ms / 1000);
   wave.render(ms / 1000);
+  lyricsView.sync(player.position);
+  lyricsView.tick();
   frame = requestAnimationFrame(tick);
 }
 function syncAnimation() {
@@ -448,6 +452,7 @@ reducedMotion.addEventListener('change', syncAnimation);
 
 player.addEventListener('track', ({ detail: track }) => {
   nowPlaying.update(track);
+  lyricsView.load(track);
   tracklist.markCurrent(track?.id ?? null);
   helix.setEnabled(Boolean(track));
   updateTime();
@@ -462,7 +467,13 @@ player.addEventListener('state', () => {
   updateTime();
 });
 
-player.addEventListener('time', updateTime);
+// The animation loop syncs lyrics every frame while playing; this covers seeks
+// while paused and reduced-motion mode, where the loop doesn't run.
+player.addEventListener('time', () => {
+  updateTime();
+  lyricsView.sync(player.position);
+  lyricsView.tick();
+});
 
 player.addEventListener('volume', () => {
   const { volume, muted } = player.audio;
@@ -499,6 +510,7 @@ function selectTab(tab) {
     t.tabIndex = on ? 0 : -1;
     $(`#${t.getAttribute('aria-controls')}`).hidden = !on;
   }
+  if (tab.id === 'tab-lyrics') lyricsView.shown();
 }
 for (const tab of tabs) {
   tab.addEventListener('click', () => selectTab(tab));
@@ -535,6 +547,7 @@ player.emit('state');
 helix.setEnabled(false);
 updateTime();
 nowPlaying.update(null);
+lyricsView.load(null);
 
 async function boot() {
   try {

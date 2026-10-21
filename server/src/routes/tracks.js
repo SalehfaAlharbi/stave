@@ -45,6 +45,7 @@ export default async function trackRoutes(app) {
         track: toApi(library.get(track.id, request.user.id)),
       });
     }
+    app.lyrics.queue(track.id);
     return reply.code(201).header('location', `/api/tracks/${track.id}`).send(toApi(track));
   });
 

@@ -29,5 +29,7 @@ export function loadConfig(env = process.env) {
     logLevel: env.LOG_LEVEL || 'info',
     // Set to "true" only when a proxy you control (e.g. a Cloudflare Tunnel) sits in front.
     trustProxy: env.TRUST_PROXY === 'true',
+    // Where synced lyrics are looked up. "off" keeps song titles from leaving the server.
+    lrclibUrl: env.STAVE_LRCLIB_URL || 'https://lrclib.net',
   };
 }

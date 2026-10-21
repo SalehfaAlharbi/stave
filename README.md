@@ -12,8 +12,8 @@ and phone. The full plan is in [docs/STAVE.md](docs/STAVE.md).
 | 2 | Streaming with HTTP range requests | done |
 | 3 | Player UI | done |
 | 4 | Accounts, likes and playlists | done |
-| 5 | Synced lyrics | next |
-| 6 | Docker Compose deploy on the SER8 | |
+| 5 | Synced lyrics | done |
+| 6 | Docker Compose deploy on the SER8 | next |
 | 7 | Polish: PWA install, media keys | |
 
 ## Running it
@@ -53,7 +53,7 @@ at phone width.
 - **Vinyl:** grooves and sheen stay still; only the cover on the label turns, at 90°/s, and only while playing.
 - **Color:** the backdrop is the cover blurred and darkened, crossfading between songs. The accent is the cover's most vivid hue, lightened until it passes 4.5:1 contrast as text.
 - **Add song:** the button, or drop files anywhere on the window. One toast per batch shows progress and lists what failed and why.
-- **Lyrics tab:** the large vinyl and titles; synced lines arrive in phase 5.
+- **Lyrics tab:** synced lyrics follow the song. The current line is in the accent color, the others fade and blur with distance (as in the mockup), the view keeps the current line centered (pausing while you scroll), and clicking a line seeks to it. Plain lyrics show unsynced. "Add lyrics" / "Edit lyrics" opens an editor: paste plain text or LRC, or press **Stamp line** while the song plays to sync it by hand. "Search LRCLIB again" retries the lookup.
 
 Tag text is inserted with `textContent` only, because tags come from uploaded
 files. A Content-Security-Policy limits the page to its own origin plus Google
@@ -92,6 +92,9 @@ sign-in endpoints. Tracks carry `liked` for the user asking.
 | `GET` `HEAD` | `/api/tracks/:id/stream` | The audio, with range requests (`206`, `416`), `If-Range`, and the file hash as a strong `ETag` |
 | `DELETE` | `/api/tracks/:id` | Whoever added it, or the admin: removes the track, its file, and its cover if unused |
 | `GET` | `/api/covers/:name` | Cover art extracted from the tags |
+| `GET` | `/api/tracks/:id/lyrics` | `{ status, source, synced, lines: [{ time, text }], text }`. Status is `pending`, `found`, `instrumental` or `missing` |
+| `PUT` · `DELETE` | `/api/tracks/:id/lyrics` | Save lyrics by hand `{ text }` (LRC is detected and stays synced); remove them |
+| `POST` | `/api/tracks/:id/lyrics/lookup` | Ask LRCLIB again now (`503` if it's busy) |
 | `GET` | `/api/likes` | Your Liked Songs, newest first |
 | `PUT` · `DELETE` | `/api/likes/:trackId` | Like, unlike |
 | `GET` · `POST` | `/api/playlists` | Your playlists (with song count and length); create one `{ name }` |
@@ -126,6 +129,22 @@ doesn't fetch the first five minutes.
 - `HEAD` is a real handler that never opens the file. Fastify's automatic HEAD would read the whole file just to throw it away.
 - Seeking was tested in Chrome: with only the first 24 s buffered, a jump to 5:00 in a 10-minute file left the buffer as `0–24.6s` and `299–503.8s`.
 
+### How lyrics work
+
+Each upload is queued for a lookup on [LRCLIB](https://lrclib.net), a free,
+open lyrics database. It matches on title, artist, album and length (±2 s).
+
+- **One request at a time, a second apart,** from a queue kept in the database, so an album upload isn't a burst and the work survives restarts. Songs uploaded before lyrics existed are queued by the migration.
+- **A miss with the album is retried without it,** because albums are often tagged differently ("Deluxe Edition"). LRCLIB's search isn't used: it also returns covers and radio edits.
+- **404 means LRCLIB has nothing; 429 and 5xx mean try later.** LRCLIB answers `503` when overloaded, even for songs it doesn't have, so those retry after 1, 5, 30, 120 and 720 minutes, then give up. `Retry-After` is respected.
+- **Lyrics typed in by hand win.** Background lookups only write to songs still waiting, so a hand edit is never overwritten. "Search again" keeps hand-made lyrics if LRCLIB still has nothing.
+- **Stored as text, parsed on read.** Synced lyrics are kept as LRC, the format LRCLIB returns and people paste. The parser handles multiple stamps per line, `[offset]`, metadata tags and word-level stamps.
+- **Privacy:** lookups send a song's title, artist, album and length to lrclib.net. Set `STAVE_LRCLIB_URL=off` to keep them on the server.
+
+Tested against the real LRCLIB with five well-known songs: four came back with
+synced lyrics and one as an instrumental. Made-up songs came back missing, or
+were queued for a retry when LRCLIB answered `503`.
+
 ### Configuration
 
 | Variable | Default | |
@@ -134,5 +153,6 @@ doesn't fetch the first five minutes.
 | `PORT` | `4545` | |
 | `STAVE_DATA_DIR` | `server/data` | Database, music and covers |
 | `STAVE_MAX_UPLOAD_MB` | `300` | |
+| `STAVE_LRCLIB_URL` | `https://lrclib.net` | `off` turns online lyrics lookups off |
 | `TRUST_PROXY` | `false` | `true` behind a proxy or tunnel you control, so client addresses and HTTPS are read from `X-Forwarded-*` |
 | `LOG_LEVEL` | `info` | |

@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { STATUS_CODES } from 'node:http';
 import { join } from 'node:path';
 import multipart from '@fastify/multipart';
@@ -10,12 +10,18 @@ import { createAuthStore } from './auth/store.js';
 import { openDatabase } from './db/index.js';
 import { createCollections } from './library/collections.js';
 import { createLibrary } from './library/index.js';
+import { createLyricsFetcher } from './lyrics/fetcher.js';
+import { createLrclibClient } from './lyrics/lrclib.js';
+import { createLyricsStore } from './lyrics/store.js';
 import authRoutes from './routes/auth.js';
 import collectionRoutes from './routes/collections.js';
 import coverRoutes from './routes/covers.js';
 import healthRoutes from './routes/health.js';
+import lyricsRoutes from './routes/lyrics.js';
 import streamRoutes from './routes/stream.js';
 import trackRoutes from './routes/tracks.js';
+
+const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 // No 0/O or 1/I/L, so the code survives being read out of a terminal.
 const SETUP_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -41,7 +47,12 @@ export async function buildApp(config) {
 
   mkdirSync(config.dataDir, { recursive: true });
   const db = openDatabase(join(config.dataDir, 'stave.db'));
-  app.addHook('onClose', async () => db.close());
+  // Background work stops first, so nothing writes to a closed database.
+  const beforeClose = [];
+  app.addHook('onClose', async () => {
+    for (const stop of beforeClose) await stop();
+    db.close();
+  });
 
   const library = createLibrary({ db, dataDir: config.dataDir, maxUploadBytes: config.maxUploadBytes });
   await library.init();
@@ -75,7 +86,28 @@ export async function buildApp(config) {
 
   await app.register(healthRoutes);
   await app.register(authRoutes, { store, setup, limiter: config.loginLimiter ?? createLoginLimiter() });
+  // Lyrics: looked up on LRCLIB in the background, unless that is turned off.
+  const lyricsStore = createLyricsStore(db);
+  const lyricsFetcher = config.lrclibUrl === 'off' ? null : createLyricsFetcher({
+    store: lyricsStore,
+    findTrack: (id) => library.get(id),
+    client: createLrclibClient({ baseUrl: config.lrclibUrl, userAgent: `Stave/${version} (self-hosted music player)` }),
+    log: app.log.child({ module: 'lyrics' }),
+    spacingMs: config.lyricsSpacingMs ?? 1000,
+  });
+  if (lyricsFetcher) {
+    beforeClose.push(() => lyricsFetcher.stop());
+    app.addHook('onReady', async () => { lyricsFetcher.start(); });
+  } else {
+    lyricsStore.abandonPending();
+  }
+  app.decorate('lyrics', {
+    fetcher: lyricsFetcher,
+    queue: (trackId) => (lyricsFetcher ? lyricsFetcher.queue(trackId) : lyricsStore.addMissing(trackId)),
+  });
+
   await app.register(trackRoutes);
+  await app.register(lyricsRoutes, { store: lyricsStore, fetcher: lyricsFetcher });
   await app.register(collectionRoutes, { collections: createCollections(db) });
   await app.register(streamRoutes);
   await app.register(coverRoutes);

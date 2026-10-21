@@ -57,6 +57,13 @@ export const deletePlaylist = (id) => request(`/api/playlists/${id}`, { method: 
 export const addToPlaylist = (id, trackId) => request(`/api/playlists/${id}/tracks`, { method: 'POST', body: { trackId } });
 export const removeFromPlaylist = (id, trackId) => request(`/api/playlists/${id}/tracks/${trackId}`, { method: 'DELETE' });
 
+// ---- Lyrics ----
+
+export const getLyrics = (trackId, { signal } = {}) => request(`/api/tracks/${trackId}/lyrics`, { signal });
+export const saveLyrics = (trackId, text) => request(`/api/tracks/${trackId}/lyrics`, { method: 'PUT', body: { text } });
+export const removeLyrics = (trackId) => request(`/api/tracks/${trackId}/lyrics`, { method: 'DELETE' });
+export const lookUpLyrics = (trackId) => request(`/api/tracks/${trackId}/lyrics/lookup`, { method: 'POST' });
+
 // ---- Uploads ----
 
 /**
