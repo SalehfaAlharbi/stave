@@ -1,0 +1,21 @@
+{
+  "name": "stave-desktop",
+  "productName": "Stave",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Stave for Windows: the Stave web client in its own window",
+  "author": "Saleh",
+  "type": "module",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "electron .",
+    "test": "node --test --test-timeout=60000 \"test/**/*.test.js\"",
+    "icons": "node scripts/make-icons.mjs"
+  },
+  "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "electron": "^44.9.3",
+    "playwright-core": "^1.64.1",
+    "png-to-ico": "^3.0.2"
+  }
+}

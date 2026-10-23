@@ -49,7 +49,7 @@ export async function startServer(t, overrides = {}) {
   const dataDir = overrides.dataDir ?? (await mkdtemp(join(tmpdir(), 'stave-test-')));
   // Lyrics lookups are off unless a test points them at a fake LRCLIB: tests never call the real one.
   const app = await buildApp({ maxUploadBytes: 10 * 1024 * 1024, logger: false, lrclibUrl: 'off', ...overrides, dataDir });
-  await app.listen({ host: '127.0.0.1', port: 0 });
+  await app.listen({ host: '127.0.0.1', port: overrides.port ?? 0 });
   const base = `http://127.0.0.1:${app.server.address().port}`;
 
   t.after(async () => {

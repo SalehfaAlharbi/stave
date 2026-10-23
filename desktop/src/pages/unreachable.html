@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src file:; style-src file: https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src file:">
+<title>Stave</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Zen+Dots&display=swap">
+<link rel="stylesheet" href="pages.css">
+<script src="unreachable.js" defer></script>
+</head>
+<body>
+<div class="drag" aria-hidden="true"></div>
+<main class="card">
+  <div class="brand">
+    <img src="../../assets/logo.svg" alt="">
+    <span class="wordmark">Stave</span>
+  </div>
+  <h1>Can't reach Stave</h1>
+  <p class="intro">Stave didn't answer at <span class="address" id="address"></span>. Check that the server is running and that this PC is on the same network.</p>
+  <p class="detail" id="detail"></p>
+  <div class="actions">
+    <button class="pill secondary" id="change" type="button">Change server</button>
+    <button class="pill primary" id="retry" type="button">Retry</button>
+  </div>
+  <p class="status" id="status" role="status">Trying again automatically…</p>
+</main>
+</body>
+</html>

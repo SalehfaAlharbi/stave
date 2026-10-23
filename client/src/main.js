@@ -1,5 +1,6 @@
 import * as api from './api.js';
 import { formatTime, formatTotal, pluralize } from './format.js';
+import { connectMediaSession } from './media-session.js';
 import { Player } from './player.js';
 import { authenticate } from './ui/auth.js';
 import { openDialog } from './ui/dialog.js';
@@ -35,6 +36,7 @@ function saveSettings() {
 }
 
 const player = new Player(new Audio());
+connectMediaSession(player);
 const toasts = createToasts($('#toasts'));
 const nowPlaying = createNowPlaying(document);
 const lyricsView = createLyricsView({ root: $('#view-lyrics'), player, toasts });

@@ -112,9 +112,9 @@ export async function buildApp(config) {
   await app.register(streamRoutes);
   await app.register(coverRoutes);
 
-  // The web client, from the same origin as the API: no CORS, and the
-  // service worker (phase 7) can cover the whole app. Files are revalidated
-  // on every load (ETag), so a deploy shows up on the next refresh.
+  // The web client, from the same origin as the API, so no CORS. Files are
+  // revalidated on every load (ETag), so a deploy shows up on the next refresh.
+  // Stave is online-only: there is no service worker and no offline mode.
   if (config.clientDir) {
     await app.register(fastifyStatic, { root: config.clientDir, maxAge: 0 });
     // Browsers ask for /favicon.ico even when the page declares an SVG icon.
